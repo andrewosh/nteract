@@ -2,6 +2,7 @@ import * as commutable from 'commutable';
 
 export function loadNotebook(state, action) {
   const { data } = action;
+  console.log('in loadNotebook...')
   const fetchedNotebook = commutable.fromJS(data);
   return Object.assign({}, state, {
     notebook: fetchedNotebook,

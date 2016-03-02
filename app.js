@@ -6,6 +6,9 @@ import launch from './main/launch';
 import { Menu } from 'electron';
 import { defaultMenu, loadFullMenu } from './main/menu';
 
+// hard-coded for now
+const endpoint = 'http://146.148.71.39/user/d4c59625bf33d2bf62cf7eb5fb483eae/'
+
 app.on('window-all-closed', () => {
   // On OS X, we want to keep the app and menu bar active
   if (process.platform !== 'darwin') {
@@ -25,6 +28,8 @@ app.on('ready', () => {
   // Get the default menu first
   Menu.setApplicationMenu(defaultMenu);
   // Let the kernels/languages come in after
-  loadFullMenu().then(menu => Menu.setApplicationMenu(menu));
-  notebooks.forEach(launch);
+  loadFullMenu(endpoint).then(menu => Menu.setApplicationMenu(menu));
+  notebooks.forEach(nb => {
+    launch(nb, endpoint)
+  });
 });

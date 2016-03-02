@@ -1,6 +1,7 @@
 import { dialog, app, Menu } from 'electron';
 
-import { listKernelSpecs } from '../src/api/kernel';
+import { listKernelSpecs as listZmqKernelSpecs } from '../src/api/kernel-zmq';
+import { listKernelSpecs as listSocketIoKernelSpecs } from '../src/api/kernel-socketio';
 
 import launch from './launch';
 
@@ -258,7 +259,8 @@ export function generateDefaultTemplate() {
 
 export const defaultMenu = Menu.buildFromTemplate(generateDefaultTemplate());
 
-export function loadFullMenu() {
+export function loadFullMenu(endpoint) {
+  const listKernelSpecs = endpoint ? listSocketIoKernelSpecs : listZmqKernelSpecs
   const kernelMenuPromise = listKernelSpecs().then(kernelSpecs => {
     return Object.keys(kernelSpecs).map(kernelName => {
       return {

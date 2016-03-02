@@ -2,7 +2,12 @@ import { getJSON } from '../api';
 
 import * as commutable from 'commutable';
 
-import { launchKernel } from '../api/kernel';
+import { launchKernel as launchZmqKernel,
+         listKernelSpecs as listZmqKernelSpecs
+} from '../api/kernel-zmq'
+import { launchKernel as launchSocketIoKernel,
+         listKernelSpecs as listSocketIoKernelSpecs
+} from '../api/kernel-socketio';
 
 import { writeFile } from 'fs';
 
@@ -27,9 +32,13 @@ import {
 import {
   createExecuteRequest,
   msgSpecToNotebookFormat,
+  childOf
 } from '../api/messaging';
 
 import Immutable from 'immutable';
+
+const Rx = require('@reactivex/rxjs')
+const Observable = Rx.Observable
 
 export function exit() {
   return {
@@ -43,9 +52,10 @@ export function killKernel() {
   };
 }
 
-export function newKernel(kernelSpecName) {
+export function newKernel(kernelSpecName, endpoint) {
+  const launchKernel = endpoint ? launchSocketIoKernel : launchZmqKernel
   return (subject) => {
-    launchKernel(kernelSpecName)
+    launchKernel(kernelSpecName, endpoint)
       .then(kc => {
         const { channels, connectionFile, spawn } = kc;
         subject.next({
@@ -88,7 +98,16 @@ export function saveAs(filename) {
   };
 }
 
-export function readNotebook(filePath) {
+// TODO: better kernel selection and multiple enchannel backends
+function selectKernel(endpoint) {
+  const listKernels = (endpoint) ? listSocketIoKernelSpecs : listZmqKernelSpecs
+  return listKernels(endpoint)
+    .then((kernels) => {
+      return Object.keys(kernels)[0]
+    })
+}
+
+export function readNotebook(filePath, endpoint) {
   return (subject) => {
     getJSON(filePath)
       .then((data) => {
@@ -96,7 +115,11 @@ export function readNotebook(filePath) {
           type: READ_NOTEBOOK,
           data,
         });
-        newKernel(data.metadata.kernelspec.name)(subject);
+        selectKernel(endpoint)
+          .then((kernel) => {
+            console.log('chose kernel: ' + kernel)
+            newKernel(kernel, endpoint)(subject)
+          })
       });
   };
 }
@@ -175,6 +198,7 @@ export function executeCell(id, source) {
     // Set the current outputs to an empty list
     dispatch(updateCellOutputs(id, new Immutable.List()));
 
+    iopub.__proto__.childOf = childOf
     const childMessages = iopub.childOf(executeRequest)
                                .share();
 
